@@ -1,0 +1,25 @@
+name = "my-graphql-app" # 将 "my-graphql-app" 替换为你希望的 Worker 名称
+main = "./src/index.ts" # 指定 Worker 的入口文件
+compatibility_date = "2025-05-11" # 建议使用一个较新的兼容性日期
+
+# 如果你需要绑定环境变量、KV 命名空间、Durable Objects 等，可以在这里配置
+
+# 例如，绑定一个名为 MY_KV 的 KV 命名空间
+# [[kv_namespaces]]
+# binding = "MY_KV"
+# id = "your-kv-namespace-id"
+
+# 例如，定义一个 Durable Object
+# [[durable_objects.bindings]]
+# name = "MY_DURABLE_OBJECT"
+# class_name = "MyDurableObject"
+
+# 如果你的 Worker 需要处理静态资产（通常与 Pages 集成时使用）
+# [site]
+# bucket = "./public" # 你的静态文件所在的目录
+# entry-point = "."
+
+# 如果你希望自定义路由
+# [[routes]]
+# pattern = "/api/*"
+# service = "my-graphql-app"
