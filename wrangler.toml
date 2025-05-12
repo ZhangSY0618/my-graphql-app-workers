@@ -5,9 +5,9 @@ compatibility_date = "2025-05-11" # 建议使用一个较新的兼容性日期
 # 如果你需要绑定环境变量、KV 命名空间、Durable Objects 等，可以在这里配置
 
 # 例如，绑定一个名为 MY_KV 的 KV 命名空间
-# [[kv_namespaces]]
-# binding = "MY_KV"
-# id = "your-kv-namespace-id"
+[[kv_namespaces]]
+binding = "USERS_KV"
+id = "<你的 KV 命名空间 ID>"
 
 # 例如，定义一个 Durable Object
 # [[durable_objects.bindings]]

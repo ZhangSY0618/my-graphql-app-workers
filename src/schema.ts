@@ -1,69 +1,118 @@
-// src/schema.ts
 import { createSchema } from 'graphql-yoga';
 import { GraphQLResolveInfo } from 'graphql';
+import { typeDefs, User, UserInput } from './types';
 
-// 定义你的 GraphQL 类型和查询
-const typeDefs = /* GraphQL */ `
+// 完整的 GraphQL 类型定义，包含查询和变更
+const operationTypeDefs = /* GraphQL */ `
   type Query {
-    hello: String!
-    randomInt(min: Int!, max: Int!): Int!
-    user(id: ID!): User
+    getUser(id: ID!): User          # 获取单个用户
+    getUsers: [User!]!              # 获取所有用户列表
   }
 
-  type User {
-    id: ID!
-    name: String!
-    email: String!
+  type Mutation {
+    createUser(input: UserInput!): User!     # 创建用户
+    updateUser(id: ID!, input: UserInput!): User! # 更新用户
+    deleteUser(id: ID!): Boolean!            # 删除用户
   }
 `;
 
-// 定义 User 类型的接口
-interface User {
-  id: string;
-  name: string;
-  email: string;
+// 合并共享类型和操作类型
+const combinedTypeDefs = [typeDefs, operationTypeDefs];
+
+// 查询和变更参数接口
+interface GetUserArgs {
+  id: string;                       // 获取用户的 ID 参数
 }
 
-// 定义解析器函数的参数类型
-interface RandomIntArgs {
-  min: number;
-  max: number;
+interface CreateUserArgs {
+  input: UserInput;                 // 创建用户的输入
 }
 
-interface UserArgs {
-  id: string;
+interface UpdateUserArgs {
+  id: string;                       // 用户 ID
+  input: UserInput;                 // 更新用户的输入
 }
 
-// 定义查询字段的解析器函数
+interface DeleteUserArgs {
+  id: string;                       // 删除用户的 ID
+}
+
+// 解析器，处理查询和变更操作
 const resolvers = {
   Query: {
-    hello: (): string => 'Hello from GraphQL Yoga on Cloudflare Worker!',
-    randomInt: (
-      _: unknown, // 父对象，通常不需要，用 unknown 或 any 标记
-      { min, max }: RandomIntArgs, // 使用接口定义参数类型
-      context: Record<string, any>, // 上下文对象，包含请求信息等
-      info: GraphQLResolveInfo // 包含当前解析过程的信息
-    ): number => {
-      return Math.floor(Math.random() * (max - min + 1)) + min;
+    getUser: async (
+      _: unknown,                    // 父对象，通常无需使用
+      { id }: GetUserArgs,          // 查询参数
+      context: { USERS_KV: KVNamespace }, // 上下文，包含 KV 存储
+      info: GraphQLResolveInfo      // GraphQL 解析信息
+    ): Promise<User | null> => {
+      // 从 KV 存储中获取用户数据
+      const userData = await context.USERS_KV.get(`user:${id}`);
+      if (!userData) return null; // 用户不存在返回 null
+      return JSON.parse(userData); // 解析并返回用户对象
     },
-    user: (
+    getUsers: async (
       _: unknown,
-      { id }: UserArgs,
-      context: Record<string, any>,
+      __: unknown,
+      context: { USERS_KV: KVNamespace },
       info: GraphQLResolveInfo
-    ): User | undefined => {
-      // 模拟从数据源获取用户数据
-      const users: User[] = [
-        { id: '1', name: 'Alice', email: 'alice@example.com' },
-        { id: '2', name: 'Bob', email: 'bob@example.com' },
-      ];
-      return users.find(user => user.id === id);
+    ): Promise<User[]> => {
+      // 获取所有用户（简化实现，生产环境需维护索引）
+      const users: User[] = [];
+      const prefix = 'user:';     // KV 键前缀
+      const list = await context.USERS_KV.list({ prefix });
+      for (const key of list.keys) {
+        const userData = await context.USERS_KV.get(key.name);
+        if (userData) users.push(JSON.parse(userData));
+      }
+      return users;               // 返回用户列表
+    },
+  },
+  Mutation: {
+    createUser: async (
+      _: unknown,
+      { input }: CreateUserArgs,
+      context: { USERS_KV: KVNamespace },
+      info: GraphQLResolveInfo
+    ): Promise<User> => {
+      const id = crypto.randomUUID();        // 生成唯一 ID
+      const user: User = { id, ...input };   // 创建用户对象
+      // 存储到 KV
+      await context.USERS_KV.put(`user:${id}`, JSON.stringify(user));
+      return user;                           // 返回创建的用户
+    },
+    updateUser: async (
+      _: unknown,
+      { id, input }: UpdateUserArgs,
+      context: { USERS_KV: KVNamespace },
+      info: GraphQLResolveInfo
+    ): Promise<User> => {
+      // 检查用户是否存在
+      const userData = await context.USERS_KV.get(`user:${id}`);
+      if (!userData) throw new Error('用户不存在');
+      // 更新用户数据
+      const updatedUser: User = { ...JSON.parse(userData), ...input, id };
+      await context.USERS_KV.put(`user:${id}`, JSON.stringify(updatedUser));
+      return updatedUser;                    // 返回更新后的用户
+    },
+    deleteUser: async (
+      _: unknown,
+      { id }: DeleteUserArgs,
+      context: { USERS_KV: KVNamespace },
+      info: GraphQLResolveInfo
+    ): Promise<boolean> => {
+      // 检查用户是否存在
+      const userData = await context.USERS_KV.get(`user:${id}`);
+      if (!userData) return false;
+      // 删除用户
+      await context.USERS_KV.delete(`user:${id}`);
+      return true;                           // 返回删除成功
     },
   },
 };
 
-// 使用 typeDefs 和 resolvers 创建 GraphQL schema
+// 创建 GraphQL schema
 export const schema = createSchema({
-  typeDefs,
-  resolvers,
+  typeDefs: combinedTypeDefs,    // 合并的类型定义
+  resolvers,                     // 解析器
 });

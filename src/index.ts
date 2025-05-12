@@ -1,14 +1,13 @@
-// src/index.ts
 import { createYoga } from 'graphql-yoga';
 import { schema } from './schema';
 
-// 使用 createYoga 创建 GraphQL 服务器实例
+// 创建 GraphQL 服务器实例，处理所有请求
 const yoga = createYoga({
-  schema,
-  graphqlEndpoint: '/graphql', // 定义 GraphQL API 的端点路径，默认为 /graphql
+  schema,                           // 导入统一的 schema
+  graphqlEndpoint: '/graphql',      // 定义 GraphQL API 端点路径
 });
 
 // Cloudflare Worker 的 fetch 事件处理函数
 export default {
-  fetch: yoga.fetch,
+  fetch: yoga.fetch,               // 将请求交给 yoga 处理
 };
