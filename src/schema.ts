@@ -2,54 +2,68 @@ import { createSchema } from 'graphql-yoga';
 import { GraphQLResolveInfo } from 'graphql';
 import { typeDefs, User, UserInput } from './types';
 
-// 完整的 GraphQL 类型定义，包含查询和变更
+// GraphQL 类型定义
 const operationTypeDefs = /* GraphQL */ `
   type Query {
-    getUser(id: ID!): User          # 获取单个用户
-    getUsers: [User!]!              # 获取所有用户列表
+    getUser(id: ID!): User
+    getUsers: [User!]!
   }
 
   type Mutation {
-    createUser(input: UserInput!): User!     # 创建用户
-    updateUser(id: ID!, input: UserInput!): User! # 更新用户
-    deleteUser(id: ID!): Boolean!            # 删除用户
+    createUser(input: UserInput!): User!
+    updateUser(id: ID!, input: UserInput!): User!
+    deleteUser(id: ID!): Boolean!
   }
 `;
 
-// 合并共享类型和操作类型
 const combinedTypeDefs = [typeDefs, operationTypeDefs];
 
-// 查询和变更参数接口
+// 解析器参数接口
 interface GetUserArgs {
-  id: string;                       // 获取用户的 ID 参数
+  id: string;
 }
 
 interface CreateUserArgs {
-  input: UserInput;                 // 创建用户的输入
+  input: UserInput;
 }
 
 interface UpdateUserArgs {
-  id: string;                       // 用户 ID
-  input: UserInput;                 // 更新用户的输入
+  id: string;
+  input: UserInput;
 }
 
 interface DeleteUserArgs {
-  id: string;                       // 删除用户的 ID
+  id: string;
 }
 
-// 解析器，处理查询和变更操作
 const resolvers = {
   Query: {
     getUser: async (
-      _: unknown,                    // 父对象，通常无需使用
-      { id }: GetUserArgs,          // 查询参数
-      context: { USERS_KV: KVNamespace }, // 上下文，包含 KV 存储
-      info: GraphQLResolveInfo      // GraphQL 解析信息
+      _: unknown,
+      { id }: GetUserArgs,
+      context: { USERS_KV: KVNamespace },
+      info: GraphQLResolveInfo
     ): Promise<User | null> => {
-      // 从 KV 存储中获取用户数据
-      const userData = await context.USERS_KV.get(`user:${id}`);
-      if (!userData) return null; // 用户不存在返回 null
-      return JSON.parse(userData); // 解析并返回用户对象
+      try {
+        if (!context.USERS_KV) {
+          console.error('USERS_KV 未定义');
+          throw new Error('KV 命名空间未绑定');
+        }
+        const userData = await context.USERS_KV.get(`user:${id}`);
+        if (!userData) {
+          console.log(`未找到 ID 为 ${id} 的用户`);
+          return null;
+        }
+        const parsed = JSON.parse(userData);
+        if (!parsed.id || !parsed.name || !parsed.email) {
+          console.error(`ID ${id} 的用户数据无效`, parsed);
+          throw new Error('用户数据格式错误');
+        }
+        return parsed;
+      } catch (error) {
+        console.error(`获取用户 ID ${id} 失败:`, error);
+        throw new Error(`获取用户失败: ${error.message}`);
+      }
     },
     getUsers: async (
       _: unknown,
@@ -57,15 +71,38 @@ const resolvers = {
       context: { USERS_KV: KVNamespace },
       info: GraphQLResolveInfo
     ): Promise<User[]> => {
-      // 获取所有用户（简化实现，生产环境需维护索引）
-      const users: User[] = [];
-      const prefix = 'user:';     // KV 键前缀
-      const list = await context.USERS_KV.list({ prefix });
-      for (const key of list.keys) {
-        const userData = await context.USERS_KV.get(key.name);
-        if (userData) users.push(JSON.parse(userData));
+      try {
+        if (!context.USERS_KV) {
+          console.error('USERS_KV 未定义');
+          throw new Error('KV 命名空间未绑定');
+        }
+        const users: User[] = [];
+        const prefix = 'user:';
+        const list = await context.USERS_KV.list({ prefix });
+        console.log(`在 USERS_KV 中找到 ${list.keys.length} 个键`);
+        for (const key of list.keys) {
+          const userData = await context.USERS_KV.get(key.name);
+          if (userData) {
+            try {
+              const parsed = JSON.parse(userData);
+              if (!parsed.id || !parsed.name || !parsed.email) {
+                console.error(`键 ${key.name} 的用户数据无效`, parsed);
+                continue;
+              }
+              users.push(parsed);
+            } catch (parseError) {
+              console.error(`解析键 ${key.name} 的用户数据失败:`, parseError);
+            }
+          } else {
+            console.log(`键 ${key.name} 无数据`);
+          }
+        }
+        console.log(`返回 ${users.length} 个用户`);
+        return users;
+      } catch (error) {
+        console.error('获取用户列表失败:', error);
+        throw new Error(`获取用户列表失败: ${error.message}`);
       }
-      return users;               // 返回用户列表
     },
   },
   Mutation: {
@@ -75,11 +112,20 @@ const resolvers = {
       context: { USERS_KV: KVNamespace },
       info: GraphQLResolveInfo
     ): Promise<User> => {
-      const id = crypto.randomUUID();        // 生成唯一 ID
-      const user: User = { id, ...input };   // 创建用户对象
-      // 存储到 KV
-      await context.USERS_KV.put(`user:${id}`, JSON.stringify(user));
-      return user;                           // 返回创建的用户
+      try {
+        if (!context.USERS_KV) {
+          console.error('USERS_KV 未定义');
+          throw new Error('KV 命名空间未绑定');
+        }
+        const id = crypto.randomUUID();
+        const user: User = { id, ...input };
+        await context.USERS_KV.put(`user:${id}`, JSON.stringify(user));
+        console.log(`创建用户 ID: ${id}`);
+        return user;
+      } catch (error) {
+        console.error('创建用户失败:', error);
+        throw new Error(`创建用户失败: ${error.message}`);
+      }
     },
     updateUser: async (
       _: unknown,
@@ -87,13 +133,25 @@ const resolvers = {
       context: { USERS_KV: KVNamespace },
       info: GraphQLResolveInfo
     ): Promise<User> => {
-      // 检查用户是否存在
-      const userData = await context.USERS_KV.get(`user:${id}`);
-      if (!userData) throw new Error('用户不存在');
-      // 更新用户数据
-      const updatedUser: User = { ...JSON.parse(userData), ...input, id };
-      await context.USERS_KV.put(`user:${id}`, JSON.stringify(updatedUser));
-      return updatedUser;                    // 返回更新后的用户
+      try {
+        if (!context.USERS_KV) {
+          console.error('USERS_KV 未定义');
+          throw new Error('KV 命名空间未绑定');
+        }
+        const userData = await context.USERS_KV.get(`user:${id}`);
+        if (!userData) {
+          console.error(`未找到 ID 为 ${id} 的用户`);
+          throw new Error('用户不存在');
+        }
+        const parsed = JSON.parse(userData);
+        const updatedUser: User = { ...parsed, ...input, id };
+        await context.USERS_KV.put(`user:${id}`, JSON.stringify(updatedUser));
+        console.log(`更新用户 ID: ${id}`);
+        return updatedUser;
+      } catch (error) {
+        console.error(`更新用户 ID ${id} 失败:`, error);
+        throw new Error(`更新用户失败: ${error.message}`);
+      }
     },
     deleteUser: async (
       _: unknown,
@@ -101,18 +159,28 @@ const resolvers = {
       context: { USERS_KV: KVNamespace },
       info: GraphQLResolveInfo
     ): Promise<boolean> => {
-      // 检查用户是否存在
-      const userData = await context.USERS_KV.get(`user:${id}`);
-      if (!userData) return false;
-      // 删除用户
-      await context.USERS_KV.delete(`user:${id}`);
-      return true;                           // 返回删除成功
+      try {
+        if (!context.USERS_KV) {
+          console.error('USERS_KV 未定义');
+          throw new Error('KV 命名空间未绑定');
+        }
+        const userData = await context.USERS_KV.get(`user:${id}`);
+        if (!userData) {
+          console.log(`未找到 ID 为 ${id} 的用户`);
+          return false;
+        }
+        await context.USERS_KV.delete(`user:${id}`);
+        console.log(`删除用户 ID: ${id}`);
+        return true;
+      } catch (error) {
+        console.error(`删除用户 ID ${id} 失败:`, error);
+        throw new Error(`删除用户失败: ${error.message}`);
+      }
     },
   },
 };
 
-// 创建 GraphQL schema
 export const schema = createSchema({
-  typeDefs: combinedTypeDefs,    // 合并的类型定义
-  resolvers,                     // 解析器
+  typeDefs: combinedTypeDefs,
+  resolvers,
 });
