@@ -1,4 +1,4 @@
-name = "my-graphql-app" # 将 "my-graphql-app" 替换为你希望的 Worker 名称
+name = "myWorker" # 将 "my-graphql-app" 替换为你希望的 Worker 名称
 main = "./src/index.ts" # 指定 Worker 的入口文件
 compatibility_date = "2025-05-11" # 建议使用一个较新的兼容性日期
 
