@@ -7,7 +7,7 @@ compatibility_date = "2025-05-11" # 建议使用一个较新的兼容性日期
 # 例如，绑定一个名为 MY_KV 的 KV 命名空间
 [[kv_namespaces]]
 binding = "USERS_KV"
-id = "<你的 KV 命名空间 ID>"
+id = "7435af95c4ba4f07832a944767bfd455"
 
 # 例如，定义一个 Durable Object
 # [[durable_objects.bindings]]

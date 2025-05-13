@@ -5,6 +5,12 @@ import { schema } from './schema';
 const yoga = createYoga({
   schema,                           // 导入统一的 schema
   graphqlEndpoint: '/graphql',      // 定义 GraphQL API 端点路径
+  cors: {
+    origin: ['http://localhost:3000','https://web3uniadmin.pages.dev'],
+    credentials: true,
+    allowedHeaders: ['Content-Type'],
+    methods: ['POST', 'GET', 'OPTIONS'],
+  },
 });
 
 // Cloudflare Worker 的 fetch 事件处理函数
