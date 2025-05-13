@@ -8,7 +8,7 @@ const yoga = createYoga({
   cors: {
     origin: ['http://localhost:3000','https://web3uniadmin.pages.dev'],
     credentials: true,
-    allowedHeaders: ['Content-Type'],
+    allowedHeaders: ['Content-Type','Authorization'],
     methods: ['POST', 'GET', 'OPTIONS'],
   },
 });
