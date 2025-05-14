@@ -1,7 +1,7 @@
 name = "my-graphql-app"
 main = "./src/index.ts"
 compatibility_date = "2025-05-14"
-
+workers_dev = true
 [[kv_namespaces]]
 binding = "MY_LIST_KV" # 必须与代码中的 MY_LIST_KV 一致
 id = "7435af95c4ba4f07832a944767bfd455" # 从图片中获取

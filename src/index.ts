@@ -1,5 +1,6 @@
-import { createSchema, createYoga } from 'graphql-yoga';
-import { KVNamespace } from '@cloudflare/workers-types';
+import { createSchema, createYoga, YogaInitialContext } from 'graphql-yoga';
+import { GraphQLSchema } from 'graphql';
+import { KVNamespace, ExecutionContext } from '@cloudflare/workers-types';
 
 interface Env {
   MY_LIST_KV: KVNamespace;
@@ -26,16 +27,25 @@ const typeDefs = /* GraphQL */ `
   }
 `;
 
+interface CustomContext {
+  env: Env;
+}
+
+interface ServerContext {
+  env: Env;
+}
+
 const resolvers = {
   Query: {
     hello: () => 'Hello World!',
-    getItems: async (_: unknown, __: unknown, context: { env: Env }): Promise<Item[]> => {
-      console.log('开始获取 items...');
+    getItems: async (_: unknown, __: unknown, context: CustomContext): Promise<Item[]> => {
+      console.log('开始获取 items...', context.env);
       try {
-        if (!context.env.MY_LIST_KV) {
+        const env = context.env || {};
+        if (!env.MY_LIST_KV) {
           throw new Error('MY_LIST_KV 未定义，请检查 wrangler.toml 配置或仪表板绑定');
         }
-        const rawItems = await context.env.MY_LIST_KV.get('items', { type: 'json' });
+        const rawItems = await env.MY_LIST_KV.get('items', { type: 'json' });
         console.log('从 KV 获取的原始数据:', rawItems);
         if (!rawItems || !Array.isArray(rawItems)) {
           console.log('数据无效或为空，返回空数组');
@@ -56,15 +66,16 @@ const resolvers = {
     },
   },
   Mutation: {
-    addItem: async (_: unknown, { text }: { text: string }, context: { env: Env }): Promise<Item> => {
+    addItem: async (_: unknown, { text }: { text: string }, context: CustomContext): Promise<Item> => {
       try {
-        if (!context.env.MY_LIST_KV) {
+        const env = context.env || {};
+        if (!env.MY_LIST_KV) {
           throw new Error('MY_LIST_KV 未定义，请检查 wrangler.toml 配置或仪表板绑定');
         }
-        const items: Item[] = (await context.env.MY_LIST_KV.get('items', { type: 'json' })) || [];
+        const items: Item[] = (await env.MY_LIST_KV.get('items', { type: 'json' })) || [];
         const newItem: Item = { id: Date.now().toString(), text };
         items.push(newItem);
-        await context.env.MY_LIST_KV.put('items', JSON.stringify(items));
+        await env.MY_LIST_KV.put('items', JSON.stringify(items));
         return newItem;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -75,10 +86,14 @@ const resolvers = {
   },
 };
 
-const yoga = createYoga({
-  schema: createSchema({ typeDefs, resolvers }),
+const schema: GraphQLSchema = createSchema({ typeDefs, resolvers });
+
+const yoga = createYoga<CustomContext, ServerContext>({
+  schema,
   graphqlEndpoint: '/graphql',
-  context: (context:any) => ({ env: context.env }), // 将 env 传递给 resolver
+  context: (initialContext: YogaInitialContext & ServerContext) => ({
+    env: initialContext.env || ({} as Env),
+  }),
   cors: {
     origin: ['http://localhost:3000'],
     methods: ['GET', 'POST', 'OPTIONS'],
@@ -87,5 +102,16 @@ const yoga = createYoga({
 });
 
 export default {
-  fetch: yoga.fetch,
+  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+    // 提取 RequestInit 兼容的选项
+    const requestInit: RequestInit = {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    };
+    const serverContext: ServerContext = { env };
+    // 第二个参数是 RequestInit，第三个参数是自定义上下文
+    return yoga.fetch(url, requestInit, serverContext);
+  },
 };
