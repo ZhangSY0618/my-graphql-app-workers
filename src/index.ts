@@ -29,10 +29,12 @@ const typeDefs = /* GraphQL */ `
 
 interface CustomContext {
   env: Env;
+  ctx?: ExecutionContext;
 }
 
 interface ServerContext {
   env: Env;
+  ctx?: ExecutionContext;
 }
 
 const resolvers = {
@@ -93,6 +95,7 @@ const yoga = createYoga<CustomContext, ServerContext>({
   graphqlEndpoint: '/graphql',
   context: (initialContext: YogaInitialContext & ServerContext) => ({
     env: initialContext.env || ({} as Env),
+    ctx: initialContext.ctx,
   }),
   cors: {
     origin: ['http://localhost:3000'],
@@ -103,15 +106,12 @@ const yoga = createYoga<CustomContext, ServerContext>({
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const url = new URL(request.url);
-    // 提取 RequestInit 兼容的选项
-    const requestInit: RequestInit = {
+    const newRequest = new Request(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,
-    };
-    const serverContext: ServerContext = { env };
-    // 第二个参数是 RequestInit，第三个参数是自定义上下文
-    return yoga.fetch(url, requestInit, serverContext);
+    });
+    const serverContext: ServerContext = { env, ctx };
+    return yoga.fetch(newRequest, serverContext);
   },
 };
