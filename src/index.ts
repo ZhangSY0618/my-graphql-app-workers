@@ -29,17 +29,9 @@ const resolvers = {
   Query: {
     hello: () => 'Hello World!', // 保留 hello 查询
     getItems: async (): Promise<Item[]> => {
-  try {
-    const items = await MY_LIST_KV.get('items', { type: 'json' });
-    if (!items || !Array.isArray(items)) {
-      return []; // 如果数据无效，返回空数组
-    }
-    return items;
-  } catch (error) {
-    console.error('获取 items 失败:', error);
-    throw new Error('无法获取列表项，请稍后重试');
-  }
-},
+    console.log('开始获取 items...');
+    return [{ id: '1', text: '测试项' }]; // 直接返回硬编码数据
+    },
   },
   Mutation: {
     addItem: async (_: unknown, { text }: { text: string }) : Promise<Item> =>{
