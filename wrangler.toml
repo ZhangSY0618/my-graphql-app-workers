@@ -1,13 +1,10 @@
-name = "my-graphql-app" # 与日志中的 scriptName 一致
-main = "./src/index.ts" # 指定 Worker 的入口文件
-compatibility_date = "2025-05-14" # 建议使用一个较新的兼容性日期
+name = "my-graphql-app"
+main = "./src/index.ts"
+compatibility_date = "2025-05-14"
 
-# 如果你需要绑定环境变量、KV 命名空间、Durable Objects 等，可以在这里配置
-
-# 例如，绑定一个名为 MY_KV 的 KV 命名空间
 [[kv_namespaces]]
-binding = "MY_LIST_KV" # 与代码中的 MY_LIST_KV 一致
-id = "7435af95c4ba4f07832a944767bfd455"
+binding = "MY_LIST_KV" # 必须与代码中的 MY_LIST_KV 一致
+id = "7435af95c4ba4f07832a944767bfd455" # 从图片中获取
 
 # 例如，定义一个 Durable Object
 # [[durable_objects.bindings]]
