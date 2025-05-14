@@ -1,4 +1,4 @@
-name = "myWorker" # 将 "my-graphql-app" 替换为你希望的 Worker 名称
+name = "my-graphql-app" # 与日志中的 scriptName 一致
 main = "./src/index.ts" # 指定 Worker 的入口文件
 compatibility_date = "2025-05-11" # 建议使用一个较新的兼容性日期
 
@@ -6,7 +6,7 @@ compatibility_date = "2025-05-11" # 建议使用一个较新的兼容性日期
 
 # 例如，绑定一个名为 MY_KV 的 KV 命名空间
 [[kv_namespaces]]
-binding = "myWorker"
+binding = "MY_LIST_KV" # 与代码中的 MY_LIST_KV 一致
 id = "7435af95c4ba4f07832a944767bfd455"
 
 # 例如，定义一个 Durable Object
