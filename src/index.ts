@@ -47,7 +47,7 @@ const resolvers = {
         );
         console.log('过滤后的 items:', items);
         return items;
-      } catch (error: unknown) {
+      } catch (error: any) {
         console.error('获取 items 失败:', error);
         throw new Error(`无法获取列表项: ${error.message}`);
       }
@@ -61,7 +61,7 @@ const resolvers = {
         items.push(newItem);
         await MY_LIST_KV.put('items', JSON.stringify(items));
         return newItem;
-      } catch (error: unknown) {
+      } catch (error: any) {
         console.error('添加 item 失败:', error);
         throw new Error(`无法添加列表项: ${error.message}`);
       }
@@ -71,6 +71,11 @@ const resolvers = {
 const yoga = createYoga({
   schema: createSchema({ typeDefs, resolvers }),
   graphqlEndpoint: '/graphql',
+  cors: {
+    origin: ['http://localhost:3000','https://web3uniadmin.pages.dev'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept'],
+  },
 });
 
 export default {
